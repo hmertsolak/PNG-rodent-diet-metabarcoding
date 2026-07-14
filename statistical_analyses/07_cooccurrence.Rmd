@@ -1,0 +1,347 @@
+---
+title: "Untitled"
+output: html_document
+date: "2026-02-20"
+---
+
+
+# Packages
+
+```{r}
+library(indicspecies)
+library(phyloseq)
+library(ape)
+library(ggtree)
+library(ShortRead)
+library(foreach)
+library(doSNOW)
+
+```
+
+#  Phyloseq + new alignment
+
+```{r }
+load("~/data/PNG_diet/data/PNG_18S_rodent_filtered_ensembles_tree_NEWMT_W_clean.R")
+PHS<-PNG_18S_rodent_filtered_ensembles_tree_NEWMT_W_clean
+taxa_names(PHS)<-paste0("ASC_",1:ntaxa(PHS))
+
+# # FASTA<-refseq(PHS)
+# # sum(duplicated(FASTA))
+# 
+# ###########################################
+# #mothur alignment+ silva as a template#####
+# ###########################################
+# 
+# writeFasta(FASTA,file = "~/data/PNG_diet/data/ASV.fasta")
+# ~/software/mothur/mothur
+# align.seqs(candidate=ASV.fasta, template=~/Downloads/silva.seed_v132/silva.seed_v132.align, processors=10)
+# ~/software/iqtree3 -s ASV.align   -m MFP -B 1000 -redo
+# 
+# ####################
+# #Clean alignment####
+# ####################
+# #some sequences are cleraly missaligned
+# #these problematic sequences a more likely problems caused during PCR
+# #now I will try to remove these problematic parts
+# 
+# 
+# #1 remove position including 100% of gaps
+# aln<-readDNAStringSet("~/data/PNG_diet/data/ASV.align")
+# aln_mat <- as.matrix(aln)
+# col_gap_threshold <- 1 
+# aln_mat<-gsub("[.]","-",aln_mat)
+# gap_freq_per_col <- colSums(aln_mat == "-") / nrow(aln_mat)
+# cols_to_keep <- gap_freq_per_col != col_gap_threshold
+# aln_filtered_cols <- aln_mat[, cols_to_keep, drop = FALSE]
+# 
+# #2 focus on position with low freqwuency of gaps (10%)
+# gap_freq_per_col <- colSums(aln_filtered_cols == "-") / nrow(aln_filtered_cols)
+# aln_filtered_cols.sub<-aln_filtered_cols[,gap_freq_per_col<0.1]
+# 
+# #3 calculate frequency of gaps for each ASV and remove gappy ASV (> 60%)
+# ASV_gap_frq<-rowSums(aln_filtered_cols.sub == "-") / ncol(aln_filtered_cols.sub)
+# hist(ASV_gap_frq)
+# gappy_ASVS<-ASV_gap_frq<0.6
+# aln_filtered_cols.bad.ASVs<-aln_filtered_cols[gappy_ASVS,]
+# # dim(aln_filtered_cols.bad.ASVs)
+# # View(aln_filtered_cols.bad.ASVs)
+# 
+# #4. remove common (100%) gaps from the final data
+# GAPS<-colSums(aln_filtered_cols.bad.ASVs == "-") / nrow(aln_filtered_cols.bad.ASVs)
+# aln_filtered_cols.bad.ASVs<-aln_filtered_cols.bad.ASVs[,GAPS!=1]
+# CLEANED <- apply(aln_filtered_cols.bad.ASVs, 1, paste, collapse = "")
+# ASV_cleaned.align <- DNAStringSet(CLEANED)
+# writeFasta(ASV_cleaned.align,file = "~/data/PNG_diet/data/ASV_cleaned.align")
+# 
+# #phylogeny
+# #~/software/iqtree3 -s ASV_cleaned.align   -m MFP -B 1000 -redo
+# # ~/software/FastTree -nt -gtr ASV_cleaned.align > ASV_cleaned_fasttree.nwk
+# 
+# #############################################
+# #########PHS with new phylogeny##############
+# #############################################
+
+```
+
+# New silva-based phylogeny 
+
+```{r }
+
+FASTTREE<-read.tree("~/data/PNG_diet/data/ASV_cleaned_fasttree.nwk")
+FASTTREE.tr<-FASTTREE
+FASTTREE.tr$edge.length <- sqrt(FASTTREE.tr$edge.length)
+ggtree(FASTTREE)
+ggtree(FASTTREE.tr)
+ggtree(phy_tree(PHS))
+
+PHS.new<-merge_phyloseq(sample_data(PHS),
+                        otu_table(PHS),
+                        tax_table(PHS),
+                        refseq(PHS),
+                        FASTTREE)
+
+#relatively moderate reduction of reads
+plot(log10(sample_sums(PHS.new)),log10(sample_sums(PHS)))
+
+
+```
+
+
+# Alternative approach
+
+pseudophylogeny, based on taxonomy
+asi nepouzivat - many ASV not assigned to order level
+```{r }
+# TT<-tax_table(PHS.new)
+# 
+# pseudo_tree <- as.phylo(~Phylum/Order/Family/Genus/ASV_ID, data = tax_df)
+
+```
+
+
+# Sample for analyzes (6 and more sample)
+
+rarefy + transform to proportions
+
+```{r }
+
+#select species with > 5 samples, rerefy and transform
+sample_data(PHS.new)$Sp<-sample_data(PHS.new)$Species_consensus_ddRAD_mt_others
+names(sample_data(PHS))
+SUMM<-summary(as.factor(sample_data(PHS.new)$Species_consensus_ddRAD_mt_others))
+SUMM<-SUMM[SUMM>5]
+length(SUMM)
+PHS.s<-prune_samples(sample_data(PHS.new)$Sp%in%names(SUMM),PHS.new)
+
+PHS.s.sr<-rarefy_even_depth(PHS.s)
+PHS.s.sr.t<-transform_sample_counts(PHS.s.sr,function(x) x/sum(x))
+PHS.s.sr
+
+```
+
+```{r }
+
+library(rdacca.hp)
+
+
+WU<-UniFrac(PHS.s.sr,weighted = T,parallel = T)
+BC<-vegdist(otu_table(PHS.s.sr))
+names(sample_data(PHS.s.sr))
+
+head(sample_data(PHS.s.sr))
+unique(sample_data(PHS.s.sr)$Sp)
+
+
+sample_data(PHS.s.sr)$Group<-ifelse(regexpr("Rattus",sample_data(PHS.s.sr)$Sp)>0,
+                                    "Rattus_native","Hydro")
+sample_data(PHS.s.sr)$Group<-ifelse(sample_data(PHS.s.sr)$Sp%in%c("Rattus rattus","Rattus exulans"),
+                                    "Rattus_invasive", sample_data(PHS.s.sr)$Group)
+
+SD<-data.frame(sample_data(PHS.s.sr))
+
+iv <- data.frame(Sp=SD$Sp,
+                Loc=SD$Loc,
+                Group=SD$Group,
+                Meta=SD$Metalokalita)
+iv2 <- data.frame(Sp=SD$Sp,
+                Loc=SD$Loc)
+
+#varpart
+WU.simple<-rdacca.hp(WU,iv2,method="dbRDA",var.part = TRUE)
+plot.rdaccahp(WU.simple,plot.perc = T)
+
+WU.complex<-rdacca.hp(WU,iv,method="dbRDA",var.part = TRUE)
+plot.rdaccahp(WU.complex,plot.perc = T)
+
+BC.simple<-rdacca.hp(BC,iv2,method="dbRDA",var.part = TRUE)
+plot.rdaccahp(BC.simple,plot.perc = T)
+
+BC.complex<-rdacca.hp(BC,iv,method="dbRDA",var.part = TRUE)
+plot.rdaccahp(BC.complex,plot.perc = T)
+
+
+plot.rdaccahp(WU.simple,plot.perc = T)
+plot.rdaccahp(BC.simple,plot.perc = T)
+
+plot.rdaccahp(WU.complex,plot.perc = T)
+plot.rdaccahp(BC.complex,plot.perc = T,main="Bray")
+
+```
+
+
+
+
+
+```{r fig.width=15,fig.height=15}
+library(lme4)
+# detach("package:lmerTest",unload = T)
+# devtools::install_github("jvparidon/lmerMultiMember")
+library(lmerMultiMember)
+library(plyr)
+
+WU.m<-as.matrix(WU)
+WU.m[upper.tri(WU.m,diag = T)]<-NA
+
+BC.m<-as.matrix(BC)
+BC.m[upper.tri(BC.m,diag = T)]<-NA
+
+WU.m.l<-reshape2::melt(WU.m)
+BC.m.l<-reshape2::melt(BC.m)
+
+head(WU.m.l)
+
+DF<-data.frame(WU=WU.m.l$value,
+               BC=BC.m.l$value,
+               sample_ID_DF1=WU.m.l$Var1,
+               sample_ID_DF2=WU.m.l$Var2)
+
+DF<-DF[!is.na(DF$BC),]
+SD1<-SD2<-SD
+names(SD1)<-paste0(names(SD1),"_DF1")
+names(SD2)<-paste0(names(SD2),"_DF2")
+
+DF<-join(DF,SD1)
+DF<-join(DF,SD2)
+
+DF$Sp_dif<-ifelse(DF$Sp_DF1==DF$Sp_DF2,"intraspec","interspec")
+DF$Loc_dif<-ifelse(DF$Loc_DF1==DF$Loc_DF2,"Same.loc","Dif.loc")
+DF$TEST<-paste0(DF$Sp_dif,"_",DF$Loc_dif)
+summary(as.factor(DF$TEST))
+
+ggplot(DF,aes(x=TEST,y=WU))+geom_violin()+geom_boxplot()
+ggplot(DF,aes(x=TEST,y=BC^2))+geom_violin()+geom_boxplot()
+
+
+VECT<-paste(DF$Sp_DF1,DF$Sp_DF2,sep=",")
+VECT2<-paste(DF$Loc_DF1,DF$Loc_DF2,sep=",")
+MAT<-lmerMultiMember::weights_from_vector(VECT)
+MAT2<-lmerMultiMember::weights_from_vector(VECT2)
+
+unique(DF$TEST)
+DF$TEST<-factor(DF$TEST,levels=c("intraspec_Same.loc","intraspec_Dif.loc",
+                                "interspec_Same.loc","interspec_Dif.loc"     ))
+
+DF$WU.logit<-car::logit(DF$WU)
+DF$BC.logit<-car::logit(DF$BC)
+
+m.wu<-lmer(WU.logit ~ TEST+
+               (1 | Sp_DF1)+(1|Loc_DF1), memberships = list(Sp_DF1 = MAT,Loc_DF1=MAT2),
+             data = DF)
+m.wu0<-lmer(WU.logit ~ 1+
+               (1 | Sp_DF1)+(1|Loc_DF1), memberships = list(Sp_DF1 = MAT,Loc_DF1=MAT2),
+             data = DF)
+anova(m.wu,m.wu0)
+m.wu.NO.INT<-m.wu
+
+m.bc<-lmer(BC.logit ~ TEST+
+               (1 | Sp_DF1)+(1|Loc_DF1), memberships = list(Sp_DF1 = MAT,Loc_DF1=MAT2),
+             data = DF)
+m.bc0<-lmer(BC.logit ~ 1+
+               (1 | Sp_DF1)+(1|Loc_DF1), memberships = list(Sp_DF1 = MAT,Loc_DF1=MAT2),
+             data = DF)
+anova(m.bc,m.bc0)
+m.bc.NO.INT<-m.bc
+
+summary(m.wu)
+summary(m.bc)
+
+library(multcomp)
+tukey_m.wu <- glht(m.wu, linfct = mcp(TEST = "Tukey"))
+tukey_m.bc <- glht(m.bc, linfct = mcp(TEST = "Tukey"))
+
+summary(tukey_m.wu)
+summary(tukey_m.bc)
+
+#predictions
+library(ggeffects)
+
+pred.wu.ME <- (predict_response(m.wu.NO.INT,terms = c("TEST")))
+pred.wu.ME.df<-data.frame(pred.wu.ME)
+plot(pred.wu.ME)
+
+pred.bc.ME <- (predict_response(m.bc.NO.INT,terms = c("TEST")))
+pred.bc.ME.df<-data.frame(pred.bc.ME)
+plot(pred.bc.ME)
+
+pred.wu.ME.df$distance<-"WU"
+pred.bc.ME.df$distance<-"BC"
+
+PRED_DF_coo_main<-rbind(pred.wu.ME.df,pred.wu.ME.df)
+
+write.table(PRED_DF_coo_main,file = "~/data/PNG_diet/RESULTS/PRED_DF_coo_main.txt",
+            sep="\t",quote = F,row.names = F)
+
+```
+
+# Version 2 - interspecific + inter-locality as separate predictor
+
+```{r fig.width=15,fig.height=15}
+m.wu<-lmer(WU.logit ~ Sp_dif+Loc_dif+Sp_dif:Loc_dif+
+               (1 | Sp_DF1)+(1|Loc_DF1), memberships = list(Sp_DF1 = MAT,Loc_DF1=MAT2),
+             data = DF)
+m.wu2<-lmer(WU.logit ~ Sp_dif+Loc_dif+
+               (1 | Sp_DF1)+(1|Loc_DF1), memberships = list(Sp_DF1 = MAT,Loc_DF1=MAT2),
+             data = DF)
+anova(m.wu,m.wu2)
+
+m.bc<-lmer(BC.logit ~ Sp_dif+Loc_dif+Sp_dif:Loc_dif+
+               (1 | Sp_DF1)+(1|Loc_DF1), memberships = list(Sp_DF1 = MAT,Loc_DF1=MAT2),
+             data = DF)
+m.bc2<-lmer(BC.logit ~ Sp_dif+Loc_dif+
+               (1 | Sp_DF1)+(1|Loc_DF1), memberships = list(Sp_DF1 = MAT,Loc_DF1=MAT2),
+             data = DF)
+anova(m.bc,m.bc2)
+
+car::Anova(m.wu)
+car::Anova(m.bc)
+
+
+#####################
+library(ggeffects)
+
+pred.wu <- (predict_response(m.wu,terms = c("Sp_dif","Loc_dif")))
+pred.wu.df<-data.frame(pred.wu)
+plot(pred.wu)
+
+pred.bc <- (predict_response(m.bc,terms = c("Sp_dif","Loc_dif")))
+pred.bc.df<-data.frame(pred.bc)
+plot(pred.bc)
+
+
+pred.bc.df$distance<-"BC"
+pred.wu.df$distance<-"WU"
+
+PRED_DF_coo_inter<-rbind(pred.bc.df,pred.wu.df)
+
+write.table(PRED_DF_coo_inter,file = "~/data/PNG_diet/RESULTS/PRED_DF_coo_inter.txt",
+            sep="\t",quote = F,row.names = F)
+
+```
+
+
+```{r fig.width=15,fig.height=15}
+
+# performance::check_model(m.wu)
+# performance::check_model(m.bc)
+
+```
