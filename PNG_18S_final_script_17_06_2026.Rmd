@@ -4970,11 +4970,10 @@ ggsave(
   device   = "pdf",
   limitsize = FALSE
 )
+```
 
-
-
-
-
+*MERGED SAMPLE DISTRIBUTION FIGURE*
+```{r tree, warning=F, message=F}
 # =================== MERGED SAMPLE DISTRIBUTION FIGURE ===================== #
 # Load necessary libraries
 library(phyloseq)
@@ -7210,6 +7209,35 @@ cat("Done.\n")
 #                                         i.e. only species with >= 6 individuals)
 #   - individual_niche_table_phylo.csv  : individual-level metrics + sample metadata
 #                                         (n = 819 rows, 44 species total)
+#
+# Key columns used:
+#   species_niche_summary_phylo.csv:
+#     species, TNW, TNW_LC, TNW_UC, mean_WIC, Inverse_BIC, Spec_index,
+#     Division, n_individuals
+#
+#   individual_niche_table_phylo.csv:
+#     sample_ID, Species_consensus_ddRAD_mt_others, WIC, TNW, Spec_index,
+#     Inverse_BIC, Division, Alt, Loc, Tribe, spatial_niche, mean_mass,
+#     Metalokalita, Genus_consensus_ddRAD_mt_others, ...
+#
+# FILTERING LOGIC:
+#   species_niche_summary_phylo.csv contains only the 22 species with >= 6
+#   individuals. ALL analyses (ASR, TNW model, individual-level GLMMs) are
+#   restricted to these 22 species. The script reports which species are
+#   excluded BEFORE dropping any data, so you can review first.
+#
+# Steps:
+#   PART 1 — Ancestral State Reconstruction (ASR) for TNW, mean_WIC,
+#             Spec_index, Inverse_BIC using phytools::fastAnc
+#   PART 2 — Models:
+#             (a) AIC-based model selection for TNW (species-level, Gaussian)
+#                 global: TNW ~ spatial_niche + Tribe + mean_mass + Range_Type
+#                 max 3 fixed predictors via MuMIn::dredge()
+#             (b) Beta-GLMM for Spec_index / WIC/TNW (individual-level)
+#                 linear and non-linear altitude versions
+#             (c) Gamma-GLMM for WIC (individual-level)
+#   PART 3 — Publication-ready tables via sjPlot::tab_model(), saved as HTML
+#             individually and combined into one Word document
 ################################################################################
 
 
@@ -7240,7 +7268,7 @@ library(webshot2)      # renders HTML tables to PNG for Word export
 
 
 # ==============================================================================
-# 1. PATHS  
+# 1. PATHS  — edit these to match your system
 # ==============================================================================
 
 tables_dir     <- "D:/Rwd/papuang/PNG_18S_FINAL2/indicspecies/figures_tables"
@@ -7286,7 +7314,7 @@ print(excluded_species)
 
 
 # ==============================================================================
-# 3. DIVISION COLOURS 
+# 3. DIVISION COLOURS  (consistent with indisp_postprocess_halil.txt)
 # ==============================================================================
 
 division_colors <- c(
@@ -7615,7 +7643,7 @@ cat("NA in WIC_pos:", sum(is.na(data_ind$WIC_pos)), "\n")
 # ------------------------------------------------------------------------------
 # 7d. Species-level dataset
 #     Used for: Model A (TNW) and Model B (Spec_index)
-#     Base: species_summary (already filtered to >= 5 individuals)
+#     Base: species_summary (already filtered to >= 6 individuals)
 #     Add:  Range_Type, Tribe, spatial_niche, scaled mean_mass, altitude
 #           summaries derived from data_ind
 # ------------------------------------------------------------------------------
@@ -7784,6 +7812,7 @@ cat("Saved: TNW_Forest_Plot.png\n")
 
 # ==============================================================================
 # 9. MODEL B: lm() FOR Spec_index — species-level, logit-transformed
+#    REVISED: formula matched to TNW primary model
 #    Spec_index_logit ~ Range_Type + spatial_niche + Tribe
 # ==============================================================================
 
@@ -8458,6 +8487,12 @@ cat("Word document saved:", word_path, "\n")
  
 
 
+#continue from here: https://claude.ai/chat/b0e834e7-0b04-42d2-b919-3690bd5a8909
+#GLMM models 
+#The original script is here: desktop asr_glmm script
+#the notes regarding models in this email: search : "I suggest removing Alt_mean, Alt_range, and Range_Type"
+
+
 
 ```
 
@@ -9013,13 +9048,16 @@ write.csv(asv_abundance2,
 # Individual-level dietary co-occurrence analysis v8 (revised)
 #
 # Changes from v7:
-#   - Barplot Panel A: bracket p-value annotations 
+#   - Barplot Panel A: bracket p-value annotations for PI-requested contrasts
 #   - TWO barplot versions saved:
 #       Panel A1: mean +/- 95% CI  (precision of mean estimate)
 #       Panel A2: mean +/- SD      (spread of raw data)
 #   - Revised colour scheme: locality is the primary colour axis
 #       Same locality  = dark tones  (dark blue intra, dark red inter)
 #       Diff. locality = light tones (light blue intra, light orange inter)
+#     This makes the co-occurrence condition (dark bars) immediately visible
+#     and the PI-requested bracket comparisons intuitive (dark-to-dark,
+#     light-to-light)
 #
 # Unit of analysis: ALL individual pairs (intra + interspecific)
 # Co-occurrence: same Locality AND same Habitat_polished_Daniel.Fanda
@@ -12049,3 +12087,288 @@ if (nrow(sig_results) == 0) {
 
 
 ```
+
+*supplementary tables*
+```{r}
+#Table 1. Sample metadata for all analysed individuals and their corresponding sequencing accession numbers.
+
+# ============================================================================ #
+#  TABLE 1 — Sample-level metadata table from phyloseq object
+#  Columns: sample_ID, Species_consensus_ddRAD_mt_others, Division, Locality,
+#           Metalokalita, Altitude, spatial_niche, Body_mass, ENA_accession
+# ============================================================================ #
+
+library(phyloseq)
+library(dplyr)
+
+# ---------------------------------------------------------------------------- #
+# 1. Load phyloseq object
+# ---------------------------------------------------------------------------- #
+load("D:/Rwd/papuang/PNG_18S_FINAL2/phyloseqs/PNG_18S_rodent_filtered_ensembles_tree_NEWMT_W_clean.R")
+PHYLOSEQ_NEWMT <- PNG_18S_rodent_filtered_ensembles_tree_NEWMT_W_clean
+
+sample_md <- as(sample_data(PHYLOSEQ_NEWMT), "data.frame")
+
+# >>> RUN THIS ONCE and check the names against the mapping below <<<
+print(colnames(sample_md))
+
+
+# ---------------------------------------------------------------------------- #
+# 2. Column mapping
+#    Left  = final column name in the table
+#    Right = candidate name(s) in sample_data(); first match wins.
+#    Edit the candidates if the print(colnames()) above shows different names.
+# ---------------------------------------------------------------------------- #
+col_map <- list(
+  Species_consensus_ddRAD_mt_others = c("Species_consensus_ddRAD_mt_others"),
+  Division_raw                      = c("Hydromyini.Division.Rattini.Group"),
+  Locality                          = c("Locality"),
+  Metalokalita                      = c("Metalokalita"),
+  Altitude                          = c("Alt"),
+  spatial_niche                     = c("spatial_niche"),
+  # "W" = individual body weight measured in the field (next to LC / LCd / LTp / LA).
+  # Swap to "mean_mass" if you want the species-level average instead.
+  Body_mass                         = c("W")
+)
+
+pick_col <- function(candidates, df, label) {
+  hit <- candidates[candidates %in% colnames(df)]
+  if (length(hit) == 0) {
+    stop(sprintf(
+      "Column for '%s' not found. Tried: %s\nAvailable columns:\n%s",
+      label, paste(candidates, collapse = ", "),
+      paste(colnames(df), collapse = ", ")
+    ))
+  }
+  hit[1]
+}
+
+resolved <- vapply(names(col_map),
+                   function(nm) pick_col(col_map[[nm]], sample_md, nm),
+                   character(1))
+print(resolved)   # shows which source column was used for each output column
+
+
+# ---------------------------------------------------------------------------- #
+# 3. Build the table
+# ---------------------------------------------------------------------------- #
+table1 <- sample_md %>%
+  # sample_ID exists as a real column in sample_data(); keep phyloseq names as backup
+  mutate(sample_ID = ifelse(is.na(sample_ID) | sample_ID == "",
+                            rownames(sample_md), as.character(sample_ID))) %>%
+  # pull the mapped columns and rename them to the final names
+  select(sample_ID, all_of(unname(resolved))) %>%
+  rename(!!!setNames(unname(resolved), names(resolved))) %>%
+  # harmonise Division exactly as in the figure script
+  mutate(
+    Division = case_when(
+      Division_raw %in% c("incertae sedis group", "R. rattus group ") ~ "Rattus invasive",
+      Division_raw == "R. leucopus group (New Guinean group) "        ~ "Rattus endemic",
+      TRUE ~ as.character(Division_raw)
+    ),
+    Division      = trimws(Division),
+    Altitude      = suppressWarnings(as.numeric(as.character(Altitude))),
+    Body_mass     = suppressWarnings(as.numeric(as.character(Body_mass))),
+    ENA_accession = "TO DO"
+  ) %>%
+  # final column order
+  select(
+    sample_ID,
+    Species_consensus_ddRAD_mt_others,
+    Division,
+    Locality,
+    Metalokalita,
+    Altitude,
+    spatial_niche,
+    Body_mass,
+    ENA_accession
+  ) %>%
+  arrange(Division, Species_consensus_ddRAD_mt_others, Metalokalita, Locality, sample_ID)
+
+
+# ---------------------------------------------------------------------------- #
+# 4. Quick sanity checks
+# ---------------------------------------------------------------------------- #
+cat("\nSamples in phyloseq:", nsamples(PHYLOSEQ_NEWMT),
+    "| rows in table1:", nrow(table1), "\n")
+
+cat("\nMissing values per column:\n")
+print(colSums(is.na(table1)))
+
+cat("\nDivision levels found:\n")
+print(sort(unique(table1$Division)))
+
+# Flag any Body_mass / Altitude entries that were text and got coerced to NA
+bad_mass <- setdiff(unique(sample_md[[resolved[["Body_mass"]]]][
+  is.na(suppressWarnings(as.numeric(as.character(sample_md[[resolved[["Body_mass"]]]]))))
+]), c(NA, ""))
+if (length(bad_mass)) {
+  cat("\nNon-numeric Body_mass values (became NA):\n")
+  print(bad_mass)
+}
+
+head(table1, 10)
+
+
+# ---------------------------------------------------------------------------- #
+# 5. Export
+# ---------------------------------------------------------------------------- #
+write.csv(table1,
+          "D:/Rwd/papuang/PNG_18S_FINAL2/tables/Table1_sample_metadata.csv",
+          row.names = FALSE, na = "")
+
+
+
+#######Table S5: 
+
+# ============================================================================ #
+#  TABLE 2 — Species-level summary
+#  Columns: Species, Division, spatial_niche, Body_mass, N_total,
+#           N_Saruwaged_Range, N_Mt_Wilhelm,
+#           Elevation_mean, Elevation_min, Elevation_max
+#
+#  Mountain-range rule:
+#    Finisterres              -> "Saruwaged Range"
+#    Mt_Wilhelm + ALL OTHERS  -> "Mt_Wilhelm"
+#  => N_Saruwaged_Range + N_Mt_Wilhelm == N_total by construction.
+#
+#  Body mass: taken from the existing species-level `mean_mass` column.
+#
+#  Requires `table1` and `sample_md` in the environment (run Table 1 script first).
+# ============================================================================ #
+
+library(phyloseq)
+library(dplyr)
+
+# source("make_table1_sample_metadata.R")   # uncomment if not already loaded
+
+stopifnot(exists("table1"), exists("sample_md"))
+
+
+# ---------------------------------------------------------------------------- #
+# 1. Mountain ranges — inspect, then assign
+# ---------------------------------------------------------------------------- #
+cat("Metalokalita levels present:\n")
+print(table(table1$Metalokalita, useNA = "ifany"))
+
+# >>> EDIT if the Finisterres level is spelled differently <<<
+finisterre_levels <- unique(as.character(table1$Metalokalita))[
+  grepl("finist|saruw", unique(as.character(table1$Metalokalita)), ignore.case = TRUE)
+]
+cat("\nTreated as 'Saruwaged Range':\n"); print(finisterre_levels)
+
+merged_into_wilhelm <- setdiff(
+  unique(as.character(table1$Metalokalita)), c(finisterre_levels, NA)
+)
+cat("\nMerged into 'Mt_Wilhelm':\n"); print(merged_into_wilhelm)
+
+if (length(finisterre_levels) == 0)
+  warning("No Finisterres level matched — set `finisterre_levels` manually.")
+
+
+# ---------------------------------------------------------------------------- #
+# 2. Species-level body mass from `mean_mass`
+#    (should be one value per species — verify, don't assume)
+# ---------------------------------------------------------------------------- #
+mass_lookup <- sample_md %>%
+  transmute(
+    Species   = as.character(Species_consensus_ddRAD_mt_others),
+    mean_mass = suppressWarnings(as.numeric(as.character(mean_mass)))
+  ) %>%
+  filter(!is.na(Species), Species != "") %>%
+  group_by(Species) %>%
+  summarise(
+    Body_mass  = if (all(is.na(mean_mass))) NA_real_ else first(na.omit(mean_mass)),
+    n_distinct_mass = n_distinct(na.omit(mean_mass)),
+    .groups = "drop"
+  )
+
+conflict <- mass_lookup %>% filter(n_distinct_mass > 1)
+if (nrow(conflict)) {
+  cat("\nWARNING — `mean_mass` is not constant within these species",
+      "(first non-NA value used):\n")
+  print(as.data.frame(conflict))
+}
+missing_mass <- mass_lookup %>% filter(is.na(Body_mass))
+if (nrow(missing_mass)) {
+  cat("\nSpecies with no `mean_mass` value:\n")
+  print(missing_mass$Species)
+}
+
+
+# ---------------------------------------------------------------------------- #
+# 3. Aggregate
+# ---------------------------------------------------------------------------- #
+table2 <- table1 %>%
+  filter(!is.na(Species_consensus_ddRAD_mt_others),
+         Species_consensus_ddRAD_mt_others != "") %>%
+  mutate(
+    Range_group = ifelse(as.character(Metalokalita) %in% finisterre_levels,
+                         "Saruwaged Range", "Mt_Wilhelm")
+  ) %>%
+  group_by(Species = as.character(Species_consensus_ddRAD_mt_others)) %>%
+  summarise(
+    Division      = paste(sort(unique(na.omit(Division))), collapse = " / "),
+    spatial_niche = paste(sort(unique(na.omit(spatial_niche[spatial_niche != ""]))),
+                          collapse = " / "),
+
+    N_total           = n(),
+    N_Saruwaged_Range = sum(Range_group == "Saruwaged Range"),
+    N_Mt_Wilhelm      = sum(Range_group == "Mt_Wilhelm"),
+
+    Elevation_mean = round(mean(Altitude, na.rm = TRUE), 0),
+    Elevation_min  = suppressWarnings(min(Altitude, na.rm = TRUE)),
+    Elevation_max  = suppressWarnings(max(Altitude, na.rm = TRUE)),
+    N_alt          = sum(!is.na(Altitude)),
+    .groups = "drop"
+  ) %>%
+  left_join(mass_lookup %>% select(Species, Body_mass), by = "Species") %>%
+  # min()/max() over an all-NA vector give Inf/-Inf; mean() gives NaN
+  mutate(
+    across(c(Elevation_min, Elevation_max),
+           ~ ifelse(is.infinite(.x), NA_real_, .x)),
+    Elevation_mean = ifelse(is.nan(Elevation_mean), NA_real_, Elevation_mean),
+    Division       = na_if(Division, ""),
+    spatial_niche  = na_if(spatial_niche, "")
+  ) %>%
+  select(Species, Division, spatial_niche, Body_mass,
+         N_total, N_Saruwaged_Range, N_Mt_Wilhelm,
+         Elevation_mean, Elevation_min, Elevation_max, N_alt) %>%
+  arrange(Division, Species)
+
+
+# ---------------------------------------------------------------------------- #
+# 4. Sanity checks
+# ---------------------------------------------------------------------------- #
+cat("\nSpecies:", nrow(table2),
+    "| individuals summed:", sum(table2$N_total),
+    "| rows in table1:", nrow(table1), "\n")
+
+stopifnot(all(table2$N_total == table2$N_Saruwaged_Range + table2$N_Mt_Wilhelm))
+cat("Range counts add up to N_total for every species. OK\n")
+
+amb <- table2 %>% filter(grepl(" / ", Division) | grepl(" / ", spatial_niche))
+if (nrow(amb)) {
+  cat("\nSpecies with more than one Division / spatial_niche value:\n")
+  print(as.data.frame(amb[, c("Species", "Division", "spatial_niche")]))
+}
+
+gaps <- table2 %>% filter(is.na(Body_mass) | N_alt == 0)
+if (nrow(gaps)) {
+  cat("\nSpecies missing body mass or altitude:\n")
+  print(as.data.frame(gaps[, c("Species", "N_total", "Body_mass", "N_alt")]))
+}
+
+print(as.data.frame(table2), row.names = FALSE)
+
+
+# ---------------------------------------------------------------------------- #
+# 5. Export
+# ---------------------------------------------------------------------------- #
+table2_export <- table2 %>% select(-N_alt)
+
+write.csv(table2_export,
+          "D:/Rwd/papuang/PNG_18S_FINAL2/tables/Table2_species_summary.csv",
+          row.names = FALSE, na = "")
+```
+
