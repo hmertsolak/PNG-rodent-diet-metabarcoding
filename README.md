@@ -4,7 +4,7 @@
 819 individuals · 44 species · 2 mountain transects (Mt. Wilhelm & Saruwaged Range) · From sea level to 3700 m asl.
 
 ## Important note 
-`PNG_18S_final_script_17_06_2026.Rmd` is the original, complete analysis pipeline. Note that this script reflects an iterative analytical workflow; parameters and intermediate objects were revised repeatedly during analysis, so some sections are not guaranteed to run sequentially from start to finish without modification.
+`PNG_18S_final_script_17_06_2026.Rmd` is the original (check if there is any updated version is uploaded in the repo), complete analysis pipeline. Note that this script reflects an iterative analytical workflow; parameters and intermediate objects were revised repeatedly during analysis, so some sections are not guaranteed to run sequentially from start to finish without modification.
 
 To have a clean organisation, individual R scripts in `statistical_analyses/` were reorganised from the original Rmd using Claude Code, to provide a clearer, modular overview of each analysis. These scripts are intended to convey the analytical workflow, parameter choices, and overall logic of each analysis — they are not guaranteed to be directly executable as standalone, copy-paste-and-run scripts.
 
