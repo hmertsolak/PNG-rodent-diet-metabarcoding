@@ -3,6 +3,20 @@
 **Dietary niche evolution in Papua New Guinea rodents assessed by 18S rRNA metabarcoding**  
 819 individuals · 44 species · 2 mountain transects (Mt. Wilhelm & Saruwaged Range) · From sea level to 3700 m asl.
 
+## How to cite
+
+If you use the data or scripts in this repository, please cite:
+
+Solak, H. M., Vejmělka, F., Okena, D. S., Bryjova, A., Ribas, A.,
+Poonlaphdecha, S., Moradpour, N., Novotny, V., Kreisinger, J., &
+Cizkova, D. (in review). Adaptive radiation, incumbency and local
+ecological context drive dietary niches in New Guinean rodents.
+*Molecular Ecology*.
+
+This citation will be updated with the volume, pages and DOI once the
+article is published.
+
+
 ## Important note 
 `PNG_18S_final_script_17_06_2026.Rmd` is the original (check if there is any updated version is uploaded in the repo), complete analysis pipeline. Note that this script reflects an iterative analytical workflow; parameters and intermediate objects were revised repeatedly during analysis, so some sections are not guaranteed to run sequentially from start to finish without modification.
 
