@@ -196,6 +196,3 @@ Set the `data_dir`, `phyloseq_dir`, and `output_dir` path variables at the top o
 
 ---
 
-## Citation
-
-Solak et al. (2026). *Dietary niche evolution in Papua New Guinea rodents revealed by 18S rRNA metabarcoding.* Molecular Ecology. [in review]
