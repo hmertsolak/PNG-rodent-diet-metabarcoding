@@ -1,0 +1,68 @@
+{
+  "upload_type": "software",
+  "title": "Adaptive radiation, incumbency and local ecological context drive dietary niches in New Guinean rodents",
+  "description": "Analysis scripts, diet tables at all taxonomic levels (kingdom, phylum, class, order, family), and raw amplicon sequence variant (ASV) counts per individual supporting the study 'Adaptive radiation, incumbency and local ecological context drive dietary niches in New Guinean rodents'. Sequencing data are archived in the European Nucleotide Archive (project accession PRJEB121239).",
+  "access_right": "open",
+  "license": "cc-by-4.0",
+  "language": "eng",
+  "keywords": [
+    "dietary metabarcoding",
+    "ecological opportunity",
+    "individual specialization",
+    "Murinae",
+    "niche breadth",
+    "niche partitioning"
+  ],
+  "creators": [
+    {
+      "name": "Solak, Halil Mert",
+      "affiliation": "Department of Zoology, Faculty of Science, Charles University, Prague, Czech Republic",
+      "orcid": "0000-0001-6877-9274"
+    },
+    {
+      "name": "Vejmělka, František",
+      "affiliation": "Department of Zoology, Faculty of Science, Charles University, Prague, Czech Republic",
+      "orcid": "0000-0002-0466-6905"
+    },
+    {
+      "name": "Okena, Daniel S.",
+      "affiliation": "Department of Zoology, Faculty of Science, Charles University, Prague, Czech Republic",
+      "orcid": "0000-0002-9444-9196"
+    },
+    {
+      "name": "Bryjova, Anna",
+      "affiliation": "Institute of Vertebrate Biology, Czech Academy of Sciences, Brno, Czech Republic",
+      "orcid": "0000-0003-4198-5486"
+    },
+    {
+      "name": "Ribas, Alexis",
+      "affiliation": "Parasitology Section, Faculty of Pharmacy and Food Science, University of Barcelona, Spain",
+      "orcid": "0000-0002-1256-3316"
+    },
+    {
+      "name": "Poonlaphdecha, Srisupaph",
+      "affiliation": "Parasitology Section, Faculty of Pharmacy and Food Science, University of Barcelona, Spain",
+      "orcid": "0000-0002-9434-3703"
+    },
+    {
+      "name": "Moradpour, Nona",
+      "affiliation": "Institute of Vertebrate Biology, Czech Academy of Sciences, Brno, Czech Republic",
+      "orcid": "0009-0003-6749-5722"
+    },
+    {
+      "name": "Novotny, Vojtech",
+      "affiliation": "Biology Centre, Czech Academy of Sciences, České Budějovice, Czech Republic",
+      "orcid": "0000-0002-3802-6527"
+    },
+    {
+      "name": "Kreisinger, Jakub",
+      "affiliation": "Department of Zoology, Faculty of Science, Charles University, Prague, Czech Republic",
+      "orcid": "0000-0001-9375-9814"
+    },
+    {
+      "name": "Cizkova, Dagmar",
+      "affiliation": "Institute of Vertebrate Biology, Czech Academy of Sciences, Brno, Czech Republic",
+      "orcid": "0000-0001-5031-7792"
+    }
+  ]
+}
