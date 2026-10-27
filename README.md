@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23692343.svg)](https://doi.org/10.5281/zenodo.23692343)
+
 # Papua New Guinea Rodent 18S Dietary Metabarcoding
 
 **Dietary niche evolution in Papua New Guinea rodents assessed by 18S rRNA metabarcoding**  
